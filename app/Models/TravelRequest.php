@@ -36,7 +36,7 @@ class TravelRequest extends Model
         'cancelled_at' => 'datetime',
     ];
     public function user(): BelongsTo
-    { 
+    {
         return $this->belongsTo(User::class);
     }
 
@@ -49,7 +49,7 @@ class TravelRequest extends Model
         $departureDate = Carbon::parse($this->departure_date);
         $now = Carbon::now();
 
-        return $now->diffInHours($departureDate) >= 24;
+        return $now->diffInHours($departureDate) >= 48;
     }
 
     public function scopeByStatus(Builder $query, string $status): Builder

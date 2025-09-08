@@ -1,61 +1,110 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+## Travel Service
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+This repository contains a simple API for managing travel requests. This project was developed for job test application.
 
-## About Laravel
+### Endpoints
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Auth
+- POST `/api/v1/auth/register` (public)
+- POST `/api/v1/auth/login` (public)
+- POST `/api/v1/auth/logout`
+- GET `/api/v1/auth/me`
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Travel Requests (JWT required)
+- GET `/api/v1/travel-requests` — list current user’s requests with filters: `status`, `destination`, `departure_date`, `return_date`, `per_page` (returns `data` + `meta`)
+- GET `/api/v1/travel-requests/{id}` — owner can view own; approver can view any
+- POST `/api/v1/travel-requests` — create a new request (status coerced to `requested`)
+- PATCH `/api/v1/travel-requests/{id}` — owner-only edit of non-status fields (requester_name, destination, departure_date, return_date)
+- PATCH `/api/v1/travel-requests/{id}/status` — approver-only approve/cancel
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+Why two update endpoints?
+- PATCH `/{id}`: owner-driven content changes (what/when/where), never status
+- PATCH `/{id}/status`: privileged workflow state change (approve/cancel)
 
-## Learning Laravel
+### Authorization model
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+- `is_approver` on `users` controls privilege:
+  - Approvers: can view any request, and change status
+  - Owners: can view and update non-status fields on their requests
+- Centralized in `App\Policies\TravelRequestPolicy` (`view`, `updateOwner`, `updateStatus`)
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+### Run with Docker
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Prereqs: Docker, Docker Compose
 
-## Laravel Sponsors
+1) Configure env
+```bash
+cp .env.example .env
+```
+Ensure your `.env` matches the MySQL service:
+```env
+DB_CONNECTION=mysql
+DB_HOST=mysql
+DB_PORT=3306
+DB_DATABASE=travel
+DB_USERNAME=travel
+DB_PASSWORD=travel
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+Also set a strong JWT secret (≥ 256-bit). Example (64 hex characters):
+```env
+JWT_SECRET=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+```
 
-### Premium Partners
+If you see build warnings related to `WWWUSER`/`WWWGROUP`, export them before building:
+```bash
+export WWWUSER=1000 WWWGROUP=1000
+docker compose up -d --build
+```
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+2) Build and start
+```bash
+docker compose up -d --build
+```
 
-## Contributing
+3) Migrate and seed
+```bash
+docker compose exec app php artisan migrate --force
+docker compose exec app php artisan db:seed --force
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+4) Run tests
+```bash
+docker compose exec app php artisan test
+```
 
-## Code of Conduct
+5) Base URL
+- `http://localhost:8000`
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### Example usage
 
-## Security Vulnerabilities
+Register and login to get JWT, then use `Authorization: Bearer <token>` for protected routes.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Create request
+```bash
+curl -X POST http://localhost:8000/api/v1/travel-requests \
+  -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' \
+  -d '{"order_id":"ORD12345678","requester_name":"John","destination":"Paris","departure_date":"2025-12-01","return_date":"2025-12-10"}'
+```
 
-## License
+Owner edit (non-status)
+```bash
+curl -X PATCH http://localhost:8000/api/v1/travel-requests/1 \
+  -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' \
+  -d '{"destination":"Rome"}'
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Approver status update
+```bash
+curl -X PATCH http://localhost:8000/api/v1/travel-requests/1/status \
+  -H 'Authorization: Bearer <approver-token>' -H 'Content-Type: application/json' \
+  -d '{"status":"approved"}'
+```
+
+### Troubleshooting
+- JWT key errors: ensure `JWT_SECRET` length is adequate
+- DB connection: ensure compose MySQL is healthy and `.env` points to `mysql`
+
+## Author
+
+- [Claudio Emanuel](https://www.linkedin.com/in/claudio-emmanuel/) made with ❤️

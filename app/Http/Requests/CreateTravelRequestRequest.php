@@ -27,6 +27,7 @@ class CreateTravelRequestRequest extends FormRequest
             'destination' => 'required|string|max:255',
             'departure_date' => 'required|date|after:today',
             'return_date' => 'required|date|after:departure_date',
+            'status' => 'nullable|in:requested',
         ];
     }
 
@@ -47,6 +48,7 @@ class CreateTravelRequestRequest extends FormRequest
             'return_date.required' => 'The return date is required.',
             'return_date.date' => 'The return date must be a date.',
             'return_date.after' => 'The return date must be after the departure date.',
+            'status.in' => 'The status must be requested when creating a travel request.',
         ];
     }
 }

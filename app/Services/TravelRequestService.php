@@ -9,7 +9,7 @@ use App\Models\User;
 use App\Exceptions\TravelRequestException;
 use Carbon\Carbon;
 use App\Notifications\TravelRequestStatusChanged;
-use Illuminate\Support\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class TravelRequestService implements TravelRequestServiceInterface
 {
@@ -17,7 +17,7 @@ class TravelRequestService implements TravelRequestServiceInterface
         private TravelRequestRepositoryInterface $travelRequestRepository
     ) {}
 
-    public function getTravelRequestsForUser(array $filters, User $user): Collection
+    public function getTravelRequestsForUser(array $filters, User $user): LengthAwarePaginator
     {
         return $this->travelRequestRepository->getTravelRequestsForUser($filters, $user);
     }
@@ -36,10 +36,12 @@ class TravelRequestService implements TravelRequestServiceInterface
 
         if (
             $data['status'] === TravelRequest::STATUS_CANCELLED &&
-            $travelRequest->status === TravelRequest::STATUS_APPROVED &&
             !$travelRequest->canBeCancelled()
         ) {
-            throw new TravelRequestException('Travel request cannot be cancelled because it is already approved without 24 hours before the departure date');
+            throw new TravelRequestException('Travel request cannot be cancelled: 
+                - not approved yet
+                - already approved without 24 hours before the departure date
+                - already cancelled');
         }
 
         $updatedData = ['status' => $data['status']];
@@ -57,5 +59,10 @@ class TravelRequestService implements TravelRequestServiceInterface
         }
 
         return $travelRequest->fresh();
+    }
+
+    public function findByIdForUser(int $id, User $user): ?TravelRequest
+    {
+        return $this->travelRequestRepository->findByIdForUser($id, $user);
     }
 }

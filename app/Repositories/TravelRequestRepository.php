@@ -5,7 +5,7 @@ namespace App\Repositories;
 use App\Contracts\Repositories\TravelRequestRepositoryInterface;
 use App\Models\TravelRequest;
 use App\Models\User;
-use Illuminate\Support\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class TravelRequestRepository implements TravelRequestRepositoryInterface
 {
@@ -13,7 +13,7 @@ class TravelRequestRepository implements TravelRequestRepositoryInterface
         private TravelRequest $travelRequest
     ) {}
 
-    public function getTravelRequestsForUser(array $filters, User $user): Collection
+    public function getTravelRequestsForUser(array $filters, User $user): LengthAwarePaginator
     {
         $query = $user->travelRequests();
 
@@ -40,7 +40,12 @@ class TravelRequestRepository implements TravelRequestRepositoryInterface
 
     public function update(TravelRequest $travelRequest, array $data): TravelRequest
     {
-        $this->travelRequest->update($data);
+        $travelRequest->update($data);
         return $travelRequest;
+    }
+
+    public function findByIdForUser(int $id, User $user): ?TravelRequest
+    {
+        return $user->travelRequests()->where('id', $id)->first();
     }
 }
